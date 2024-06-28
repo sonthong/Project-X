@@ -12,7 +12,8 @@ namespace Platformer {
         [SerializeField, Anywhere] InputReader input;
         
         [Header("Movement Settings")]
-        [SerializeField] bool isMoving;
+        [SerializeField] bool isMovingLeft;
+        [SerializeField] bool isMovingRight;
         [SerializeField] float initialSpeed = 6f;
         [SerializeField] float acceleration = 0.2f;
         [SerializeField] float maxSpeed = 10f;
@@ -23,6 +24,7 @@ namespace Platformer {
         [SerializeField] float jumpDuration = 0.5f;
         [SerializeField] float jumpCooldown = 0f;
         [SerializeField] float gravityMultiplier = 3f;
+        [SerializeField] float swipeRange = 50f;
         
         [Header("Dash Settings")]
         [SerializeField] float dashForce = 10f;
@@ -34,7 +36,8 @@ namespace Platformer {
         Transform _mainCam;
         float _screenWidth;
         Vector2 _currentTouchPosition;
-        
+        Vector2 _lastTouchPosition;
+
         float _jumpVelocity;
         float _dashVelocity = 1f;
 
@@ -63,9 +66,9 @@ namespace Platformer {
             var moveState = new MoveState(this);
 
             // Define transitions
-            At(idleState, jumpState, new FuncPredicate(() => _jumpTimer.IsRunning));
-            At(idleState, moveState, new FuncPredicate(() => isMoving));
-            At(moveState, jumpState, new FuncPredicate(()  => _jumpTimer.IsRunning));
+            At(idleState, jumpState, new FuncPredicate(() => !groundChecker.IsGrounded));
+            At(idleState, moveState, new FuncPredicate(() => isMovingRight ||isMovingLeft));
+            At(moveState, jumpState, new FuncPredicate(()  => !groundChecker.IsGrounded));
             At(jumpState, dashState, new FuncPredicate(() => _dashTimer.IsRunning));
             Any(idleState, new FuncPredicate(ReturnToIdleState));
 
@@ -122,12 +125,36 @@ namespace Platformer {
 
         void OnMove(Vector2 touchPosition)
         {
-            
+            _currentTouchPosition = ScreenToWorld(_mainCam, touchPosition);
+            if (_currentTouchPosition.x * _screenWidth > _screenWidth / 2)
+            {
+                isMovingRight = true;
+                isMovingLeft = false;
+            }
+            else
+            {
+                isMovingLeft = true;
+                isMovingRight = false;
+            }
         }
 
         void OnStop(Vector2 touchPosition)
         {
-            
+            _lastTouchPosition = ScreenToWorld(_mainCam, touchPosition);
+        }
+
+        void SwipeDetection(){
+            Vector2 Direction = _lastTouchPosition - _currentTouchPosition;
+            if (distance.y > swipeRange && Mathf.Abs(distance.x) < swipeRange)
+            {
+                ResetTouch();
+                HandleJump();
+            }
+        }
+
+        void ResetTouch(){
+            _lastTouchPosition = Vector2.Zero;
+            _currentTouchPosition = Vector2.Zero;
         }
 
         void OnJump(bool performed) {
@@ -163,24 +190,39 @@ namespace Platformer {
         }
 
         public void HandleJump() {
-            // If not jumping and grounded, keep jump velocity at 0
-            if (!_jumpTimer.IsRunning && groundChecker.IsGrounded) {
-                _jumpVelocity = ZeroF;
-                return;
-            }
-            
-            if (!_jumpTimer.IsRunning) {
-                // Gravity takes over
-                _jumpVelocity += Physics.gravity.y * gravityMultiplier * Time.fixedDeltaTime;
-            }
-            
-            // Apply velocity
-            rb.velocity = new Vector3(rb.velocity.x, _jumpVelocity, rb.velocity.z);
+            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
         }
 
         public void HandleMovement() {
-            
+            if (movingRight || movingLeft)
+        {
+            currentSpeed += acceleration * Time.fixedDeltaTime;
+            currentSpeed = Mathf.Min(currentSpeed, maxSpeed);
+
+            Vector3 movement = Vector3.zero;
+            if (isMovingRight)
+            {
+                movement = Vector3.right;
+            }
+            else if (isMovingLeft)
+            {
+                movement = Vector3.left;
+            }
+
+            rb.velocity = movement * currentSpeed;
+        }
         }
 
+    }
+
+    void HandleDash(){
+        if (isMovingRight)
+        {
+            Vector2 velocity = Vector2.right * dashVelocity * Time.fixedDeltaTime;
+        }
+        else{
+            Vector2 velocity = Vector2.right * dashVelocity * Time.fixedDeltaTime;
+        }
+        rb.velocity = new Vector2(velocity.x, rb.velocity.y);
     }
 }
