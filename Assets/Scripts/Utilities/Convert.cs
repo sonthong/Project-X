@@ -1,10 +1,13 @@
 using UnityEngine;
 
-public class Convert : MonoBehaviour
+namespace Utilities
 {
-    public Vector3 ScreenToWorld(Camera camera, Vector3 position)
+    public static class Convert
     {
-        position.z = camera.nearClipPlane;
-        return camera.ScreenToViewportPoint(position);
+        public static Vector3 ScreenToWorld(Camera camera, Vector3 position)
+        {
+            position.z = camera.nearClipPlane;
+            return camera.ScreenToViewportPoint(position);
+        }
     }
 }

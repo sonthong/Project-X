@@ -1,12 +1,13 @@
 using UnityEngine;
 
 namespace Platformer {
-    public class IdleState : BaseState {
-        public IdleState(PlayerController player) : base(player) { }
-        
+    public class MoveState : BaseState {
+        public MoveState(PlayerController player) : base(player) { }
+
         public override void OnEnter() {
+            Debug.Log("Enter MoveState");
         }
-        
+
         public override void FixedUpdate() {
             Player.HandleMovement();
         }
